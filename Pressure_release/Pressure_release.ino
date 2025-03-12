@@ -260,54 +260,36 @@ void valve_turn(int16_t steps)
   if(steps == 0)
   {
     position = 0;
-    PORTD &= ~(0b00000001 << STEP_STICK_MS1);                // fullSTEP
-    PORTD &= ~(0b00000001 << STEP_STICK_MS2);                //
-    PORTD &= ~(0b00000001 << STEP_STICK_MS3);                //
-
-    PORTD &= ~(0b00000001 << STEP_STICK_N_ENABLE);
-    PORTB &= ~(0b00000001 << STEP_STICK_DIR);
-    
-    Serial.println("Valve cal") ;
-    for(uint8_t i=30; i>0; i--)
-    {
-      PORTB |= 0b00000001 << STEP_STICK_STEP;
-      delay(2);
-      PORTB &= ~(0b00000001 << STEP_STICK_STEP);
-      delay(2);
-    }
-    PORTD |= 0b00000001 << STEP_STICK_MS1;                // 1/16 microSTEP
-    PORTD |= 0b00000001 << STEP_STICK_MS2;                //
-    PORTD |= 0b00000001 << STEP_STICK_MS3;                //
-    PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;
+    steps = - 400;
   }
   else
   {
     position += steps;
-
-    PORTD &= ~(0b00000001 << STEP_STICK_N_ENABLE);
-    if(steps > 0) 
-    {
-      PORTB |= 0b00000001 << STEP_STICK_DIR;
-      Serial.print("position: ") ;
-      Serial.println(position) ;
-      //valve_open = 1;
-    }
-    else if(steps < 0) 
-    {
-      PORTB &= ~(0b00000001 << STEP_STICK_DIR);
-      Serial.print("position: ") ;
-      Serial.println(position) ;
-      //valve_open = 0;
-    }
-    for(uint16_t i=abs(steps); i>0; i--)
-    {
-      PORTB |= 0b00000001 << STEP_STICK_STEP;
-      delay(2);
-      PORTB &= ~(0b00000001 << STEP_STICK_STEP);
-      delay(2);
-    }
-    PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;
   }
+
+  PORTD &= ~(0b00000001 << STEP_STICK_N_ENABLE);
+  if(steps > 0) 
+  {
+    PORTB |= 0b00000001 << STEP_STICK_DIR;
+    Serial.print("position: ") ;
+    Serial.println(position) ;
+    //valve_open = 1;
+  }
+  else if(steps < 0) 
+  {
+    PORTB &= ~(0b00000001 << STEP_STICK_DIR);
+    Serial.print("position: ") ;
+    Serial.println(position) ;
+    //valve_open = 0;
+  }
+  for(uint16_t i=abs(steps); i>0; i--)
+  {
+    PORTB |= 0b00000001 << STEP_STICK_STEP;
+    delay(2);
+    PORTB &= ~(0b00000001 << STEP_STICK_STEP);
+    delay(2);
+  }
+  PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;
 
 }
 float map_float(float x, float in_min, float in_max, float out_min, float out_max)
