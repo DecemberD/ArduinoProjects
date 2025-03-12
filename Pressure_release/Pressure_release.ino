@@ -1,3 +1,9 @@
+/*
+Project name: Pressure Releave Valve control
+Date: 12.03.2025
+Author: Marcin Dec
+*/
+
 #include <avr/sleep.h>    // Sleep Modes
 #include <EEPROM.h>
 
@@ -35,7 +41,7 @@ void setup() {
   PORTD &= 0b00000000;                                  // set all PORTD pins to 0
   PORTB &= 0b00000000;                                  // set all PORTB pins to 0
   PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;           // disable stepstick output
-  PORTD |= 0b00000001 << STEP_STICK_MS1;                // 1/32 microSTEP
+  PORTD |= 0b00000001 << STEP_STICK_MS1;                // 1/16 microSTEP
   PORTD |= 0b00000001 << STEP_STICK_MS2;                //
   PORTD |= 0b00000001 << STEP_STICK_MS3;                //
   PORTB &= ~(0b00000001 << STEP_STICK_STEP);            // STEP_STICK_STEP Low
@@ -75,7 +81,7 @@ void setup() {
   EEPROM.get(sizeof(uint8_t)+3*sizeof(float), f_value);
   if(!isnan(f_value)) level_capacity_nF_to_low = f_value; 
 
-  valve_turn(0);                                        // close valve upon power-up to calibrate valve position
+  valve_turn(0);                                        // fully close valve upon power-up to calibrate valve position
 }
 
 
@@ -174,7 +180,7 @@ void loop() {
             valve_turn(1);
             break;
           case 'c':
-            valve_turn(0);
+            valve_turn(-1);
             break;
           default:
             break;
@@ -193,14 +199,14 @@ void loop() {
   }
 
   // valve control 
-  if(pressure_psi_avg > pressure_psi_to_open && !valve_open )
-  {
-    valve_turn(1);  // valve open
-  }
-  else if(pressure_psi_avg < pressure_psi_to_close && valve_open)
-  {
-    valve_turn(0);  // valve close
-  }
+  // if(pressure_psi_avg > pressure_psi_to_open && !valve_open )
+  // {
+  //   valve_turn(1, MOTOR_STEPS_TO_OPEN_CLOSE);  // valve open
+  // }
+  // else if(pressure_psi_avg < pressure_psi_to_close && valve_open)
+  // {
+  //   valve_turn(0, MOTOR_STEPS_TO_OPEN_CLOSE);  // valve close
+  // }
 
   // sample and get peak to peak  voltage on "liquid" cappacitor
   i = 100;
@@ -248,30 +254,61 @@ void loop() {
   pressure_psi_last = pressure_psi_avg;                   // retain last pressure value for next loop  
   level_capacity_nF_last = level_capacity_nF;
 }
-void valve_turn(char dir) {
-  PORTD &= ~(0b00000001 << STEP_STICK_N_ENABLE);
-  if(dir) 
+void valve_turn(int16_t steps) 
+{
+  static int16_t position = 0;
+  if(steps == 0)
   {
-    PORTB |= 0b00000001 << STEP_STICK_DIR;
-    Serial.print("OPENNING\n") ;
-    Serial.print("\n") ;
-    valve_open = 1;
-  }
-  else 
-  {
+    position = 0;
+    PORTD &= ~(0b00000001 << STEP_STICK_MS1);                // fullSTEP
+    PORTD &= ~(0b00000001 << STEP_STICK_MS2);                //
+    PORTD &= ~(0b00000001 << STEP_STICK_MS3);                //
+
+    PORTD &= ~(0b00000001 << STEP_STICK_N_ENABLE);
     PORTB &= ~(0b00000001 << STEP_STICK_DIR);
-    Serial.print("CLOSING\n") ;
-    Serial.print("\n") ;
-    valve_open = 0;
+    
+    Serial.println("Valve cal") ;
+    for(uint8_t i=30; i>0; i--)
+    {
+      PORTB |= 0b00000001 << STEP_STICK_STEP;
+      delay(2);
+      PORTB &= ~(0b00000001 << STEP_STICK_STEP);
+      delay(2);
+    }
+    PORTD |= 0b00000001 << STEP_STICK_MS1;                // 1/16 microSTEP
+    PORTD |= 0b00000001 << STEP_STICK_MS2;                //
+    PORTD |= 0b00000001 << STEP_STICK_MS3;                //
+    PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;
   }
-  for(uint8_t i=0; i<MOTOR_STEPS_TO_OPEN_CLOSE; i++)
+  else
   {
-    PORTB |= 0b00000001 << STEP_STICK_STEP;
-    delay(2);
-    PORTB &= ~(0b00000001 << STEP_STICK_STEP);
-    delay(2);
+    position += steps;
+
+    PORTD &= ~(0b00000001 << STEP_STICK_N_ENABLE);
+    if(steps > 0) 
+    {
+      PORTB |= 0b00000001 << STEP_STICK_DIR;
+      Serial.print("position: ") ;
+      Serial.println(position) ;
+      //valve_open = 1;
+    }
+    else if(steps < 0) 
+    {
+      PORTB &= ~(0b00000001 << STEP_STICK_DIR);
+      Serial.print("position: ") ;
+      Serial.println(position) ;
+      //valve_open = 0;
+    }
+    for(uint16_t i=abs(steps); i>0; i--)
+    {
+      PORTB |= 0b00000001 << STEP_STICK_STEP;
+      delay(2);
+      PORTB &= ~(0b00000001 << STEP_STICK_STEP);
+      delay(2);
+    }
+    PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;
   }
-  PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;
+
 }
 float map_float(float x, float in_min, float in_max, float out_min, float out_max)
 {
