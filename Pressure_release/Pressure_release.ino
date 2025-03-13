@@ -272,7 +272,20 @@ void valve_turn(int16_t steps)
   if(steps == 0)
   {
     position = 0;
-    steps = - 800;
+    //steps = - 800;
+    valve_turn(-800);
+    delay(100);
+    valve_turn(-30);
+    delay(100);
+    valve_turn(-15);
+    delay(100);
+    valve_turn(-7);
+    delay(100);
+    valve_turn(-3);
+    delay(100);
+    valve_turn(-1);
+    delay(100);
+
   }
   else
   {
