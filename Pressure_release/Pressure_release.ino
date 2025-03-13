@@ -97,6 +97,8 @@ void loop() {
   float pressure_psi = 0.0;
   float pressure_psi_avg = 0.0;
 
+  static int16_t calval = 520;
+
   if (Serial.available() > 0) {
       // get incoming byte:
       char_command = Serial.read();
@@ -177,9 +179,19 @@ void loop() {
             Serial.println("data stored") ;
             break;
           case 'o':
-            valve_turn(1);
+            valve_turn(calval);
+            valve_turn(-calval);
+            calval += 10;
             break;
           case 'c':
+            calval -= 10;
+            valve_turn(calval);
+            valve_turn(-calval);
+            break;
+          case 't':
+            valve_turn(1);
+            break;
+          case 'g':
             valve_turn(-1);
             break;
           default:
@@ -260,7 +272,7 @@ void valve_turn(int16_t steps)
   if(steps == 0)
   {
     position = 0;
-    steps = - 400;
+    steps = - 800;
   }
   else
   {
