@@ -194,6 +194,9 @@ void loop() {
           case 'g':
             valve_turn(-1);
             break;
+          case 'y':
+            valve_turn(0);
+            break;
           default:
             break;
         }
