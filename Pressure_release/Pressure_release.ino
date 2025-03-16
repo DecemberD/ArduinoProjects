@@ -12,9 +12,9 @@ Author: Marcin Dec
 #define STEP_STICK_MS1 3  
 #define STEP_STICK_MS2 4  
 #define STEP_STICK_MS3 5 
-#define STEP_STICK_STEP 0  
-#define STEP_STICK_DIR 1  
-#define BUZZER 4
+#define STEP_STICK_STEP 8  
+#define STEP_STICK_DIR 9  
+#define BUZZER 12
  
 #define PRESSURE A0
 #define LEVEL A1
@@ -37,24 +37,21 @@ void setup() {
   float f_value;
   uint8_t u_value;
 
-
-  PORTD &= 0b00000000;                                  // set all PORTD pins to 0
-  PORTB &= 0b00000000;                                  // set all PORTB pins to 0
-  PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;           // disable stepstick output
-  PORTD |= 0b00000001 << STEP_STICK_MS1;                // 1/16 microSTEP
-  PORTD |= 0b00000001 << STEP_STICK_MS2;                //
-  PORTD |= 0b00000001 << STEP_STICK_MS3;                //
-  PORTB &= ~(0b00000001 << STEP_STICK_STEP);            // STEP_STICK_STEP Low
-  PORTB &= ~(0b00000001 << STEP_STICK_DIR);             // dir to Close
-  PORTB &= ~(0b00000001 << BUZZER);                     // Buzzer Off
+  digitalWrite(STEP_STICK_N_ENABLE, 1);           // disable stepstick output
+  digitalWrite(STEP_STICK_MS1, 1);                // 1/16 microSTEP
+  digitalWrite(STEP_STICK_MS2, 1);                //
+  digitalWrite(STEP_STICK_MS3, 1);                //
+  digitalWrite(STEP_STICK_STEP, 0);               // STEP_STICK_STEP Low
+  digitalWrite(STEP_STICK_DIR, 0);                // dir to Close
+  digitalWrite(BUZZER, 0);                        // Buzzer Off
 
   pinMode(STEP_STICK_N_ENABLE, OUTPUT);                 // outputs enable
   pinMode(STEP_STICK_MS1, OUTPUT);                      //
   pinMode(STEP_STICK_MS2, OUTPUT);                      //
   pinMode(STEP_STICK_MS3, OUTPUT);                      //
-  pinMode(STEP_STICK_STEP+8, OUTPUT);                   //
-  pinMode(STEP_STICK_DIR+8, OUTPUT);                    //
-  pinMode(BUZZER+8, OUTPUT);                            //
+  pinMode(STEP_STICK_STEP, OUTPUT);                   //
+  pinMode(STEP_STICK_DIR, OUTPUT);                    //
+  pinMode(BUZZER, OUTPUT);                            //
   // Set Pin D6 (OC0A) as output
   pinMode(6, OUTPUT);                                   //
 
@@ -97,7 +94,7 @@ void loop() {
   float pressure_psi = 0.0;
   float pressure_psi_avg = 0.0;
 
-  static int16_t calval = 520;
+  static int16_t calval = 430;
 
   if (Serial.available() > 0) {
       // get incoming byte:
@@ -170,7 +167,7 @@ void loop() {
             else
             {
               buzzer_mute = 1;
-              PORTB &= ~(0b00000001 << BUZZER);
+              digitalWrite(BUZZER, 0);
               Serial.println("buzzer muted") ;
             }
             break;
@@ -256,15 +253,15 @@ void loop() {
 
   if(level_capacity_nF < level_capacity_nF_to_low && !liquid_low_level)
   {
-    Serial.println("Fluid Low Level") ; 
+    Serial.println("Fluid m Level") ; 
     liquid_low_level = 1;
     if(!buzzer_mute)
-      PORTB |= 0b00000001 << BUZZER;
+      digitalWrite(BUZZER, 1);
   }
   if(level_capacity_nF > level_capacity_nF_to_normal && liquid_low_level)
   {
     liquid_low_level = 0;
-    PORTB &= ~(0b00000001 << BUZZER);
+    digitalWrite(BUZZER, 0);
   }
   pressure_psi_last = pressure_psi_avg;                   // retain last pressure value for next loop  
   level_capacity_nF_last = level_capacity_nF;
@@ -276,18 +273,19 @@ void valve_turn(int16_t steps)
   {
     position = 0;
     //steps = - 800;
-    valve_turn(-800);
-    delay(100);
-    valve_turn(-30);
-    delay(100);
-    valve_turn(-15);
-    delay(100);
-    valve_turn(-7);
-    delay(100);
-    valve_turn(-3);
-    delay(100);
-    valve_turn(-1);
-    delay(100);
+    valve_turn(430);
+    valve_turn(-430);
+    // delay(100);
+    // valve_turn(-30);
+    // delay(100);
+    // valve_turn(-15);
+    // delay(100);
+    // valve_turn(-7);
+    // delay(100);
+    // valve_turn(-3);
+    // delay(100);
+    // valve_turn(-1);
+    // delay(100);
 
   }
   else
@@ -295,29 +293,29 @@ void valve_turn(int16_t steps)
     position += steps;
   }
 
-  PORTD &= ~(0b00000001 << STEP_STICK_N_ENABLE);
+  digitalWrite(STEP_STICK_N_ENABLE, 0);
   if(steps > 0) 
   {
-    PORTB |= 0b00000001 << STEP_STICK_DIR;
+    digitalWrite(STEP_STICK_DIR, 1);
     Serial.print("position: ") ;
     Serial.println(position) ;
     //valve_open = 1;
   }
   else if(steps < 0) 
   {
-    PORTB &= ~(0b00000001 << STEP_STICK_DIR);
+    digitalWrite(STEP_STICK_DIR, 0);
     Serial.print("position: ") ;
     Serial.println(position) ;
     //valve_open = 0;
   }
   for(uint16_t i=abs(steps); i>0; i--)
   {
-    PORTB |= 0b00000001 << STEP_STICK_STEP;
+    digitalWrite(STEP_STICK_STEP, 1);
     delay(2);
-    PORTB &= ~(0b00000001 << STEP_STICK_STEP);
+    digitalWrite(STEP_STICK_STEP, 0);
     delay(2);
   }
-  PORTD |= 0b00000001 << STEP_STICK_N_ENABLE;
+  digitalWrite(STEP_STICK_N_ENABLE, 1);
 
 }
 float map_float(float x, float in_min, float in_max, float out_min, float out_max)
