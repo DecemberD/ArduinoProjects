@@ -12,6 +12,7 @@ Author: Marcin Dec
 #define STEP_STICK_MS1 3  
 #define STEP_STICK_MS2 4  
 #define STEP_STICK_MS3 5 
+#define STEP_STICK_N_RESET 7
 #define STEP_STICK_STEP 8  
 #define STEP_STICK_DIR 9  
 #define BUZZER 12
@@ -38,9 +39,10 @@ void setup() {
   uint8_t u_value;
 
   digitalWrite(STEP_STICK_N_ENABLE, 1);           // disable stepstick output
-  digitalWrite(STEP_STICK_MS1, 1);                // 1/16 microSTEP
-  digitalWrite(STEP_STICK_MS2, 1);                //
-  digitalWrite(STEP_STICK_MS3, 1);                //
+  digitalWrite(STEP_STICK_MS1, 0);                // 1/16 microSTEP
+  digitalWrite(STEP_STICK_MS2, 0);                //
+  digitalWrite(STEP_STICK_MS3, 0);                //
+  digitalWrite(STEP_STICK_N_RESET, 0);            // keep stepstick in reset
   digitalWrite(STEP_STICK_STEP, 0);               // STEP_STICK_STEP Low
   digitalWrite(STEP_STICK_DIR, 0);                // dir to Close
   digitalWrite(BUZZER, 0);                        // Buzzer Off
@@ -49,9 +51,10 @@ void setup() {
   pinMode(STEP_STICK_MS1, OUTPUT);                      //
   pinMode(STEP_STICK_MS2, OUTPUT);                      //
   pinMode(STEP_STICK_MS3, OUTPUT);                      //
-  pinMode(STEP_STICK_STEP, OUTPUT);                   //
-  pinMode(STEP_STICK_DIR, OUTPUT);                    //
-  pinMode(BUZZER, OUTPUT);                            //
+  pinMode(STEP_STICK_N_RESET, OUTPUT);                  //
+  pinMode(STEP_STICK_STEP, OUTPUT);                     //
+  pinMode(STEP_STICK_DIR, OUTPUT);                      //
+  pinMode(BUZZER, OUTPUT);                              //
   // Set Pin D6 (OC0A) as output
   pinMode(6, OUTPUT);                                   //
 
@@ -78,7 +81,7 @@ void setup() {
   EEPROM.get(sizeof(uint8_t)+3*sizeof(float), f_value);
   if(!isnan(f_value)) level_capacity_nF_to_low = f_value; 
 
-  valve_turn(0);                                        // fully close valve upon power-up to calibrate valve position
+  valve_turn(0);                                        // calibrate valve position
 }
 
 
@@ -94,7 +97,7 @@ void loop() {
   float pressure_psi = 0.0;
   float pressure_psi_avg = 0.0;
 
-  static int16_t calval = 430;
+  static int16_t calval = 26;
 
   if (Serial.available() > 0) {
       // get incoming byte:
@@ -269,54 +272,54 @@ void loop() {
 void valve_turn(int16_t steps) 
 {
   static int16_t position = 0;
+  static uint8_t step_delay_ms = 2;
   if(steps == 0)
   {
+    digitalWrite(STEP_STICK_N_RESET, 0);            // Reset stepstick
+    digitalWrite(STEP_STICK_MS1, 0);                // FullSTEP
+    digitalWrite(STEP_STICK_MS2, 0);                //
+    digitalWrite(STEP_STICK_MS3, 0);                //
+    digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
+    delay(1);                                       //
+    step_delay_ms = 32;                             // set step/ustep delay
+    valve_turn(-32);                                // turn to end position
+    digitalWrite(STEP_STICK_N_RESET, 0);            // Reset stepstick                                      //
+    digitalWrite(STEP_STICK_MS1, 1);                // 1/16 microSTEP
+    digitalWrite(STEP_STICK_MS2, 1);                //
+    digitalWrite(STEP_STICK_MS3, 1);                //
+    digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
+    delay(1);                                       //
+    step_delay_ms = 2;                              // set step/ustep delay
+    valve_turn(120);                                // turn to position 0
     position = 0;
-    //steps = - 800;
-    valve_turn(430);
-    valve_turn(-430);
-    // delay(100);
-    // valve_turn(-30);
-    // delay(100);
-    // valve_turn(-15);
-    // delay(100);
-    // valve_turn(-7);
-    // delay(100);
-    // valve_turn(-3);
-    // delay(100);
-    // valve_turn(-1);
-    // delay(100);
-
   }
   else
   {
     position += steps;
+    digitalWrite(STEP_STICK_N_ENABLE, 0);
+    if(steps > 0) 
+    {
+      digitalWrite(STEP_STICK_DIR, 1);
+      Serial.print("position: ") ;
+      Serial.println(position) ;
+      //valve_open = 1;
+    }
+    else if(steps < 0) 
+    {
+      digitalWrite(STEP_STICK_DIR, 0);
+      Serial.print("position: ") ;
+      Serial.println(position) ;
+      //valve_open = 0;
+    }
+    for(uint16_t i=abs(steps); i>0; i--)
+    {
+      digitalWrite(STEP_STICK_STEP, 1);
+      delay(step_delay_ms);
+      digitalWrite(STEP_STICK_STEP, 0);
+      delay(step_delay_ms);
+    }
+    digitalWrite(STEP_STICK_N_ENABLE, 1);
   }
-
-  digitalWrite(STEP_STICK_N_ENABLE, 0);
-  if(steps > 0) 
-  {
-    digitalWrite(STEP_STICK_DIR, 1);
-    Serial.print("position: ") ;
-    Serial.println(position) ;
-    //valve_open = 1;
-  }
-  else if(steps < 0) 
-  {
-    digitalWrite(STEP_STICK_DIR, 0);
-    Serial.print("position: ") ;
-    Serial.println(position) ;
-    //valve_open = 0;
-  }
-  for(uint16_t i=abs(steps); i>0; i--)
-  {
-    digitalWrite(STEP_STICK_STEP, 1);
-    delay(2);
-    digitalWrite(STEP_STICK_STEP, 0);
-    delay(2);
-  }
-  digitalWrite(STEP_STICK_N_ENABLE, 1);
-
 }
 float map_float(float x, float in_min, float in_max, float out_min, float out_max)
 {
