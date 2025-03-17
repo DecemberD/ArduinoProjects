@@ -30,7 +30,13 @@ float level_capacity_nF_to_low = 10.0;
 float level_capacity_nF_last = 0;
 float pressure_psi_to_close = 10.0;
 float pressure_psi_to_open = 15.0;
+float pressure_psi_setpoint = 3.0;
 float pressure_psi_last = 0.0;
+int16_t valve_position = 0;
+// PID Control Parameters
+float Kp = 1.0; // Proportional Gain
+float Ki = 0.1; // Integral Gain
+float Kd = 0.05; // Derivative Gain
 
 
 
@@ -96,6 +102,8 @@ void loop() {
   float level_capacity_nF = 0;
   float pressure_psi = 0.0;
   float pressure_psi_avg = 0.0;
+  int16_t pid_output = 0;
+
 
   static int16_t calval = 26;
 
@@ -222,7 +230,11 @@ void loop() {
   // {
   //   valve_turn(0, MOTOR_STEPS_TO_OPEN_CLOSE);  // valve close
   // }
-
+  pid_output = (int16_t)calculate_pid(pressure_psi_setpoint, pressure_psi_avg);
+  if((pid_output - valve_position) != 0)
+  {
+    valve_turn(pid_output - valve_position);
+  }
   // sample and get peak to peak  voltage on "liquid" cappacitor
   i = 100;
   level_adc_count_max = 0;
@@ -271,7 +283,7 @@ void loop() {
 }
 void valve_turn(int16_t steps) 
 {
-  static int16_t position = 0;
+  //static int16_t position = 0;
   static uint8_t step_delay_ms = 2;
   if(steps == 0)
   {
@@ -291,24 +303,24 @@ void valve_turn(int16_t steps)
     delay(1);                                       //
     step_delay_ms = 2;                              // set step/ustep delay
     valve_turn(120);                                // turn to position 0
-    position = 0;
+    valve_position = 0;
   }
   else
   {
-    position += steps;
+    valve_position += steps;
     digitalWrite(STEP_STICK_N_ENABLE, 0);
     if(steps > 0) 
     {
       digitalWrite(STEP_STICK_DIR, 1);
-      Serial.print("position: ") ;
-      Serial.println(position) ;
+      Serial.print("valve_position: ") ;
+      Serial.println(valve_position) ;
       //valve_open = 1;
     }
     else if(steps < 0) 
     {
       digitalWrite(STEP_STICK_DIR, 0);
-      Serial.print("position: ") ;
-      Serial.println(position) ;
+      Serial.print("valve_position: ") ;
+      Serial.println(valve_position) ;
       //valve_open = 0;
     }
     for(uint16_t i=abs(steps); i>0; i--)
@@ -333,3 +345,90 @@ void database_store(void)
   EEPROM.put(sizeof(uint8_t)+2*sizeof(float), level_capacity_nF_to_normal);
   EEPROM.put(sizeof(uint8_t)+3*sizeof(float), level_capacity_nF_to_low);
 }
+
+// Function to calculate PID output
+float calculate_pid(float setpoint, float measured_value) 
+{
+  static float previous_error = 0.0;
+  static float integral = 0.0;
+  static uint8_t output_clamped = 0;
+
+  float error = -(setpoint - measured_value);
+  if(!output_clamped)
+  {
+    integral += error; // Accumulate the integral of the error
+  }
+  float derivative = error - previous_error; // Change in error
+  previous_error = error; // Store the current error for next derivative calculation
+
+  // PID output
+  float output = Kp * error + Ki * integral + Kd * derivative;
+
+  // Clamp output to 0-100%
+  if (output <= 0.0)
+  {
+    output_clamped = 1;
+    output = 0.0;
+  }
+  else if (output >= 200.0) 
+  {
+    output_clamped = 1;
+    output = 200.0;
+  }
+  else output_clamped = 0;
+  
+  Serial.print("error: ") ;
+  Serial.println(error, 1) ;
+  Serial.print("integral: ") ;
+  Serial.println(integral, 1) ;
+  Serial.print("derivative: ") ;
+  Serial.println(derivative, 1) ;
+  Serial.print("output: ") ;
+  Serial.println(output, 1) ;
+
+  return output;
+}
+
+// Function for self-tuning gains
+void self_tune(float measured_value, float setpoint) {
+    float error = setpoint - measured_value;
+
+    // Adjust PID parameters based on the error
+    if (error > 1.0) {
+        Kp += 0.01; // Increase proportional gain
+        Ki += 0.001; // Increase integral gain
+    } else if (error < -1.0) {
+        Kp -= 0.01; // Decrease proportional gain
+        Ki -= 0.001; // Decrease integral gain
+    }
+
+    // Clamp Kp and Ki to sensible limits
+    if (Kp < 0) Kp = 0;
+    if (Ki < 0) Ki = 0;
+}
+
+// Main function
+// int main() {
+//     float setpoint, measured_value, output;
+
+//     // Example setpoint and measured value
+//     setpoint = 20.0; // Desired pressure (psi)
+    
+//     // Simulate measurement (replace this with actual sensor readings)
+//     srand(time(0));
+//     measured_value = rand() % 31; // Simulated pressure between 0 and 30 psi
+
+//     // Update and calculate PID output
+//     output = calculate_pid(setpoint, measured_value);
+
+//     // Self-tune PID parameters
+//     self_tune(measured_value, setpoint);
+
+//     // Display results
+//     printf("Setpoint: %.1f psi\n", setpoint);
+//     printf("Measured Value: %.1f psi\n", measured_value);
+//     printf("PID Output: %.1f%%\n", output);
+//     printf("Kp: %.2f, Ki: %.4f, Kd: %.2f\n", Kp, Ki, Kd);
+
+//     return 0;
+// }
