@@ -28,11 +28,10 @@ uint8_t buzzer_mute = 0;
 float level_capacity_nF_to_normal = 400.0;
 float level_capacity_nF_to_low = 10.0;
 float level_capacity_nF_last = 0;
-float pressure_psi_to_close = 10.0;
-float pressure_psi_to_open = 15.0;
-float pressure_psi_setpoint = 3.0;
+float pressure_psi_setpoint = 10.0;
 float pressure_psi_last = 0.0;
 int16_t valve_position = 0;
+uint8_t ctrl_override = 0;
 // PID Control Parameters
 float Kp = 1.0; // Proportional Gain
 float Ki = 0.1; // Integral Gain
@@ -79,13 +78,15 @@ void setup() {
   EEPROM.get(0, u_value);
   if(u_value != 0xFF) buzzer_mute = u_value;
   EEPROM.get(sizeof(uint8_t), f_value);
-  if(!isnan(f_value)) pressure_psi_to_close = f_value;
-  EEPROM.get(sizeof(uint8_t)+sizeof(float), f_value);
-  if(!isnan(f_value)) pressure_psi_to_open = f_value;  
+  if(!isnan(f_value)) pressure_psi_setpoint = f_value;
   EEPROM.get(sizeof(uint8_t)+2*sizeof(float), f_value);
   if(!isnan(f_value)) level_capacity_nF_to_normal = f_value;  
   EEPROM.get(sizeof(uint8_t)+3*sizeof(float), f_value);
   if(!isnan(f_value)) level_capacity_nF_to_low = f_value; 
+  EEPROM.get(sizeof(uint8_t)+4*sizeof(float), f_value);
+  if(!isnan(f_value)) Kp = f_value; 
+  EEPROM.get(sizeof(uint8_t)+5*sizeof(float), f_value);
+  if(!isnan(f_value)) Ki = f_value; 
 
   valve_turn(0);                                        // calibrate valve position
 }
@@ -100,12 +101,11 @@ void loop() {
   uint16_t level_adc_count_min = 0;
   uint16_t level_adc_pp = 0;
   float level_capacity_nF = 0;
+  float level_capacity_nF_change = 0;
   float pressure_psi = 0.0;
   float pressure_psi_avg = 0.0;
   int16_t pid_output = 0;
 
-
-  static int16_t calval = 26;
 
   if (Serial.available() > 0) {
       // get incoming byte:
@@ -114,32 +114,18 @@ void loop() {
       switch (char_command)
         {
           case 'q':
-            pressure_psi_to_close += 0.1;
-            if(pressure_psi_to_close >= 21.0)
-              pressure_psi_to_close = 21.0;
-            Serial.print("pressure_psi_to_close: ") ;
-            Serial.println(pressure_psi_to_close, 1) ;    // print float with 1 decimal place
+            pressure_psi_setpoint += 0.1;
+            if(pressure_psi_setpoint >= 21.0)
+              pressure_psi_setpoint = 21.0;
+            Serial.print("pressure_psi_setpoint: ") ;
+            Serial.println(pressure_psi_setpoint, 1) ;    // print float with 1 decimal place
             break;
           case 'a':
-            pressure_psi_to_close -= 0.1;
-            if(pressure_psi_to_close <= -0.1)
-              pressure_psi_to_close = 0.0;
-            Serial.print("pressure_psi_to_close: ") ;
-            Serial.println(pressure_psi_to_close, 1) ; 
-            break;
-          case 'w':
-            pressure_psi_to_open += 0.1;
-            if(pressure_psi_to_open >= 21.0)
-              pressure_psi_to_open = 21.0;
-            Serial.print("pressure_psi_to_open: ") ;
-            Serial.println(pressure_psi_to_open, 1) ; 
-            break;
-          case 's':
-            pressure_psi_to_open -= 0.1;
-            if(pressure_psi_to_open <= -0.1)
-              pressure_psi_to_open = 0.0;
-            Serial.print("pressure_psi_to_open: ") ;
-            Serial.println(pressure_psi_to_open, 1) ; 
+            pressure_psi_setpoint -= 0.1;
+            if(pressure_psi_setpoint <= -0.1)
+              pressure_psi_setpoint = 0.0;
+            Serial.print("pressure_psi_setpoint: ") ;
+            Serial.println(pressure_psi_setpoint, 1) ; 
             break;
           case 'e':
             level_capacity_nF_to_normal += 10.0;
@@ -169,6 +155,34 @@ void loop() {
             Serial.print("level_capacity_nF_to_low: ") ;
             Serial.println(level_capacity_nF_to_low, 1) ; 
             break;
+          case 't':
+            Kp += 0.1;
+            if(Kp >= 2.0)
+              Kp = 2.0;
+            Serial.print("Kp: ") ;
+            Serial.println(Kp, 1) ; 
+            break;
+          case 'g':
+            Kp -= 0.1;
+            if(Kp <= 0.1)
+              Kp = 0.1;
+            Serial.print("Kp: ") ;
+            Serial.println(Kp, 1) ; 
+            break;
+          case 'y':
+            Ki += 0.01;
+            if(Ki >= 1.0)
+              Ki = 1.0;
+            Serial.print("Ki: ") ;
+            Serial.println(Ki, 2) ; 
+            break;
+          case 'h':
+            Ki -= 0.01;
+            if(Ki <= 0.01)
+              Ki = 0.01;
+            Serial.print("Ki: ") ;
+            Serial.println(Ki, 2) ; 
+            break;
           case 'm':
             if(buzzer_mute) 
             {
@@ -186,23 +200,16 @@ void loop() {
             database_store();
             Serial.println("data stored") ;
             break;
-          case 'o':
-            valve_turn(calval);
-            valve_turn(-calval);
-            calval += 10;
-            break;
           case 'c':
-            calval -= 10;
-            valve_turn(calval);
-            valve_turn(-calval);
+            ctrl_override = ~(ctrl_override);
             break;
-          case 't':
-            valve_turn(1);
+          case 'u':
+            if(ctrl_override) valve_turn(1);
             break;
-          case 'g':
-            valve_turn(-1);
+          case 'j':
+            if(ctrl_override) valve_turn(-1);
             break;
-          case 'y':
+          case 'x':
             valve_turn(0);
             break;
           default:
@@ -222,19 +229,12 @@ void loop() {
   }
 
   // valve control 
-  // if(pressure_psi_avg > pressure_psi_to_open && !valve_open )
-  // {
-  //   valve_turn(1, MOTOR_STEPS_TO_OPEN_CLOSE);  // valve open
-  // }
-  // else if(pressure_psi_avg < pressure_psi_to_close && valve_open)
-  // {
-  //   valve_turn(0, MOTOR_STEPS_TO_OPEN_CLOSE);  // valve close
-  // }
   pid_output = (int16_t)calculate_pid(pressure_psi_setpoint, pressure_psi_avg);
-  if((pid_output - valve_position) != 0)
+  if((pid_output - valve_position) != 0 && !ctrl_override)
   {
     valve_turn(pid_output - valve_position);
   }
+  
   // sample and get peak to peak  voltage on "liquid" cappacitor
   i = 100;
   level_adc_count_max = 0;
@@ -253,11 +253,13 @@ void loop() {
   //       2 * Pi * f * R * Uc
   level_capacity_nF = 2000*(float)(sqrt(1048575 - (float)(level_adc_pp) * (float)(level_adc_pp)))/(double)(62.8*level_adc_pp);
 
-  level_capacity_nF_last -= level_capacity_nF;
-  level_capacity_nF_last = abs(level_capacity_nF_last);
+  level_capacity_nF_change = level_capacity_nF_last - level_capacity_nF;
+  if(level_capacity_nF_change > 0) level_capacity_nF_change = level_capacity_nF/level_capacity_nF_last;
+  else level_capacity_nF_change = level_capacity_nF_last/level_capacity_nF;
   pressure_psi_last -= pressure_psi_avg;
   pressure_psi_last = abs(pressure_psi_last);
-  if(level_capacity_nF_last > 1 or pressure_psi_last > 0.1) // print level_capacity_nF and pressure value only when changed 
+  
+  if(level_capacity_nF_change < 0.8 || pressure_psi_last > 0.01) // print level_capacity_nF and pressure value only when changed 
   {
     Serial.print("level_capacity_nF: ") ;
     Serial.println(level_capacity_nF, 1) ; 
@@ -265,10 +267,9 @@ void loop() {
     Serial.println(pressure_psi_avg, 1) ;
   }
 
-
   if(level_capacity_nF < level_capacity_nF_to_low && !liquid_low_level)
   {
-    Serial.println("Fluid m Level") ; 
+    Serial.println("Fluid Low Level") ; 
     liquid_low_level = 1;
     if(!buzzer_mute)
       digitalWrite(BUZZER, 1);
@@ -302,7 +303,7 @@ void valve_turn(int16_t steps)
     digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
     delay(1);                                       //
     step_delay_ms = 2;                              // set step/ustep delay
-    valve_turn(120);                                // turn to position 0
+    valve_turn(50);                                // turn to position 0
     valve_position = 0;
   }
   else
@@ -340,10 +341,11 @@ float map_float(float x, float in_min, float in_max, float out_min, float out_ma
 void database_store(void)
 {
   EEPROM.put(0, buzzer_mute); 
-  EEPROM.put(sizeof(uint8_t), pressure_psi_to_close);
-  EEPROM.put(sizeof(uint8_t)+sizeof(float), pressure_psi_to_open);
+  EEPROM.put(sizeof(uint8_t), pressure_psi_setpoint);
   EEPROM.put(sizeof(uint8_t)+2*sizeof(float), level_capacity_nF_to_normal);
   EEPROM.put(sizeof(uint8_t)+3*sizeof(float), level_capacity_nF_to_low);
+  EEPROM.put(sizeof(uint8_t)+4*sizeof(float), Kp);
+  EEPROM.put(sizeof(uint8_t)+5*sizeof(float), Ki);
 }
 
 // Function to calculate PID output
@@ -364,7 +366,7 @@ float calculate_pid(float setpoint, float measured_value)
   // PID output
   float output = Kp * error + Ki * integral + Kd * derivative;
 
-  // Clamp output to 0-100%
+  // Clamp output to 0-200
   if (output <= 0.0)
   {
     output_clamped = 1;
@@ -377,14 +379,14 @@ float calculate_pid(float setpoint, float measured_value)
   }
   else output_clamped = 0;
   
-  Serial.print("error: ") ;
-  Serial.println(error, 1) ;
-  Serial.print("integral: ") ;
-  Serial.println(integral, 1) ;
-  Serial.print("derivative: ") ;
-  Serial.println(derivative, 1) ;
-  Serial.print("output: ") ;
-  Serial.println(output, 1) ;
+  // Serial.print("error: ") ;
+  // Serial.println(error, 1) ;
+  // Serial.print("integral: ") ;
+  // Serial.println(integral, 1) ;
+  // Serial.print("derivative: ") ;
+  // Serial.println(derivative, 1) ;
+  // Serial.print("output: ") ;
+  // Serial.println(output, 1) ;
 
   return output;
 }
@@ -407,28 +409,4 @@ void self_tune(float measured_value, float setpoint) {
     if (Ki < 0) Ki = 0;
 }
 
-// Main function
-// int main() {
-//     float setpoint, measured_value, output;
 
-//     // Example setpoint and measured value
-//     setpoint = 20.0; // Desired pressure (psi)
-    
-//     // Simulate measurement (replace this with actual sensor readings)
-//     srand(time(0));
-//     measured_value = rand() % 31; // Simulated pressure between 0 and 30 psi
-
-//     // Update and calculate PID output
-//     output = calculate_pid(setpoint, measured_value);
-
-//     // Self-tune PID parameters
-//     self_tune(measured_value, setpoint);
-
-//     // Display results
-//     printf("Setpoint: %.1f psi\n", setpoint);
-//     printf("Measured Value: %.1f psi\n", measured_value);
-//     printf("PID Output: %.1f%%\n", output);
-//     printf("Kp: %.2f, Ki: %.4f, Kd: %.2f\n", Kp, Ki, Kd);
-
-//     return 0;
-// }
