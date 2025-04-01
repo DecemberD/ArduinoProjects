@@ -219,12 +219,15 @@ void loop() {
 
   // sample and average pressure  
   int i = 100;
+  pressure_adc_count = analogRead(PRESSURE);
+  //pressure_psi = map_float(pressure_adc_count, 478.952, 957.905, 0.0, 12.5); // reference 1.069V, 100psi range
+  pressure_psi_avg = map_float((float)pressure_adc_count, 102.3, 920.7, 0, 30); // reference 5V, 30psi range
   while (i > 0)                                         
   {
     i -= 1;
     pressure_adc_count = analogRead(PRESSURE);
     //pressure_psi = map_float(pressure_adc_count, 478.952, 957.905, 0.0, 12.5); // reference 1.069V, 100psi range
-    pressure_psi = map_float((float)pressure_adc_count, 101.0698, 910.67, 0, 30); // reference 5V, 30psi range
+    pressure_psi = map_float((float)pressure_adc_count, 102.3, 920.7, 0, 30); // reference 5V, 30psi range
     pressure_psi_avg =  (float)(pressure_psi_avg*99 +  pressure_psi)/100;
   }
 
@@ -259,12 +262,14 @@ void loop() {
   pressure_psi_last -= pressure_psi_avg;
   pressure_psi_last = abs(pressure_psi_last);
   
-  if(level_capacity_nF_change < 0.8 || pressure_psi_last > 0.01) // print level_capacity_nF and pressure value only when changed 
+  if(level_capacity_nF_change < 0.8 || pressure_psi_last > 0.1) // print level_capacity_nF and pressure value only when changed 
   {
     Serial.print("level_capacity_nF: ") ;
     Serial.println(level_capacity_nF, 1) ; 
     Serial.print("Pressure: ") ;
-    Serial.println(pressure_psi_avg, 1) ;
+    Serial.print(pressure_psi_avg, 2) ;
+    Serial.print(",  ") ;
+    Serial.println(pressure_adc_count) ;
   }
 
   if(level_capacity_nF < level_capacity_nF_to_low && !liquid_low_level)
@@ -303,7 +308,7 @@ void valve_turn(int16_t steps)
     digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
     delay(1);                                       //
     step_delay_ms = 2;                              // set step/ustep delay
-    valve_turn(50);                                // turn to position 0
+    valve_turn(130);                                // turn to position 0
     valve_position = 0;
   }
   else
@@ -315,14 +320,14 @@ void valve_turn(int16_t steps)
       digitalWrite(STEP_STICK_DIR, 1);
       Serial.print("valve_position: ") ;
       Serial.println(valve_position) ;
-      //valve_open = 1;
+      valve_open = 1;
     }
     else if(steps < 0) 
     {
       digitalWrite(STEP_STICK_DIR, 0);
       Serial.print("valve_position: ") ;
       Serial.println(valve_position) ;
-      //valve_open = 0;
+      valve_open = 0;
     }
     for(uint16_t i=abs(steps); i>0; i--)
     {
