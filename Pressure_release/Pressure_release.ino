@@ -104,6 +104,7 @@ void loop() {
   float level_capacity_nF_change = 0;
   float pressure_psi = 0.0;
   float pressure_psi_avg = 0.0;
+  float pressure_psi_diff = 0.0;
   int16_t pid_output = 0;
 
 
@@ -259,10 +260,10 @@ void loop() {
   level_capacity_nF_change = level_capacity_nF_last - level_capacity_nF;
   if(level_capacity_nF_change > 0) level_capacity_nF_change = level_capacity_nF/level_capacity_nF_last;
   else level_capacity_nF_change = level_capacity_nF_last/level_capacity_nF;
-  pressure_psi_last -= pressure_psi_avg;
-  pressure_psi_last = abs(pressure_psi_last);
+  pressure_psi_diff = pressure_psi_last - pressure_psi_avg;
+  pressure_psi_diff = abs(pressure_psi_diff);
   
-  if(level_capacity_nF_change < 0.8 || pressure_psi_last > 0.1) // print level_capacity_nF and pressure value only when changed 
+  if(level_capacity_nF_change < 0.8 || pressure_psi_diff > 0.1) // print level_capacity_nF and pressure value only when changed 
   {
     Serial.print("level_capacity_nF: ") ;
     Serial.println(level_capacity_nF, 1) ; 
@@ -270,6 +271,8 @@ void loop() {
     Serial.print(pressure_psi_avg, 2) ;
     Serial.print(",  ") ;
     Serial.println(pressure_adc_count) ;
+    pressure_psi_last = pressure_psi_avg;                   // retain last printed pressure value for next loop  
+    level_capacity_nF_last = level_capacity_nF;             // and last printed level_capacity_nF
   }
 
   if(level_capacity_nF < level_capacity_nF_to_low && !liquid_low_level)
@@ -284,8 +287,6 @@ void loop() {
     liquid_low_level = 0;
     digitalWrite(BUZZER, 0);
   }
-  pressure_psi_last = pressure_psi_avg;                   // retain last pressure value for next loop  
-  level_capacity_nF_last = level_capacity_nF;
 }
 void valve_turn(int16_t steps) 
 {
