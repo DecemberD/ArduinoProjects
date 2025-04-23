@@ -31,6 +31,7 @@ float level_capacity_nF_last = 0;
 float pressure_psi_setpoint = 10.0;
 float pressure_psi_last = 0.0;
 int16_t valve_position = 0;
+int16_t initial_valve_position = 70;
 uint8_t ctrl_override = 0;
 // PID Control Parameters
 float Kp = 1.0; // Proportional Gain
@@ -42,6 +43,7 @@ float Kd = 0.05; // Derivative Gain
 void setup() {
   float f_value;
   uint8_t u_value;
+  int16_t int_value;
 
   digitalWrite(STEP_STICK_N_ENABLE, 1);           // disable stepstick output
   digitalWrite(STEP_STICK_MS1, 0);                // 1/16 microSTEP
@@ -87,6 +89,8 @@ void setup() {
   if(!isnan(f_value)) Kp = f_value; 
   EEPROM.get(sizeof(uint8_t)+5*sizeof(float), f_value);
   if(!isnan(f_value)) Ki = f_value; 
+  EEPROM.get(sizeof(uint8_t)+5*sizeof(float)+sizeof(int16_t), int_value);
+  if(!isnan(f_value)) initial_valve_position = int_value; 
 
   valve_turn(0);                                        // calibrate valve position
 }
@@ -183,6 +187,20 @@ void loop() {
               Ki = 0.01;
             Serial.print("Ki: ") ;
             Serial.println(Ki, 2) ; 
+            break;
+          case 'i':
+            initial_valve_position += 1;
+            if(initial_valve_position >= 200)
+              initial_valve_position = 200;
+            Serial.print("initial_valve_position: ") ;
+            Serial.println(initial_valve_position) ; 
+            break;
+          case 'k':
+            initial_valve_position -= 1;
+            if(initial_valve_position <= 0)
+              initial_valve_position = 0;
+            Serial.print("initial_valve_position: ") ;
+            Serial.println(initial_valve_position) ; 
             break;
           case 'm':
             if(buzzer_mute) 
@@ -309,7 +327,7 @@ void valve_turn(int16_t steps)
     digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
     delay(1);                                       //
     step_delay_ms = 2;                              // set step/ustep delay
-    valve_turn(130);                                // turn to position 0
+    valve_turn(initial_valve_position);                                // turn to position 0
     valve_position = 0;
   }
   else
@@ -352,6 +370,7 @@ void database_store(void)
   EEPROM.put(sizeof(uint8_t)+3*sizeof(float), level_capacity_nF_to_low);
   EEPROM.put(sizeof(uint8_t)+4*sizeof(float), Kp);
   EEPROM.put(sizeof(uint8_t)+5*sizeof(float), Ki);
+  EEPROM.put(sizeof(uint8_t)+5*sizeof(float)+sizeof(int16_t), initial_valve_position); 
 }
 
 // Function to calculate PID output
