@@ -89,7 +89,7 @@ void setup() {
   if(!isnan(f_value)) Kp = f_value; 
   EEPROM.get(sizeof(uint8_t)+5*sizeof(float), f_value);
   if(!isnan(f_value)) Ki = f_value; 
-  EEPROM.get(sizeof(uint8_t)+5*sizeof(float)+sizeof(int16_t), int_value);
+  EEPROM.get(sizeof(uint8_t)+6*sizeof(float), int_value);
   if(!isnan(f_value)) initial_valve_position = int_value; 
 
   valve_turn(0);                                        // calibrate valve position
@@ -370,7 +370,7 @@ void database_store(void)
   EEPROM.put(sizeof(uint8_t)+3*sizeof(float), level_capacity_nF_to_low);
   EEPROM.put(sizeof(uint8_t)+4*sizeof(float), Kp);
   EEPROM.put(sizeof(uint8_t)+5*sizeof(float), Ki);
-  EEPROM.put(sizeof(uint8_t)+5*sizeof(float)+sizeof(int16_t), initial_valve_position); 
+  EEPROM.put(sizeof(uint8_t)+6*sizeof(float), initial_valve_position); 
 }
 
 // Function to calculate PID output
