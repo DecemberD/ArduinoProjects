@@ -37,6 +37,7 @@ uint8_t ctrl_override = 0;
 float Kp = 1.0; // Proportional Gain
 float Ki = 0.1; // Integral Gain
 float Kd = 0.05; // Derivative Gain
+int8_t buzzer_enable = 0;
 
 
 
@@ -190,8 +191,8 @@ void loop() {
             break;
           case 'i':
             initial_valve_position += 1;
-            if(initial_valve_position >= 200)
-              initial_valve_position = 200;
+            if(initial_valve_position >= 400)
+              initial_valve_position = 400;
             Serial.print("initial_valve_position: ") ;
             Serial.println(initial_valve_position) ; 
             break;
@@ -211,7 +212,7 @@ void loop() {
             else
             {
               buzzer_mute = 1;
-              digitalWrite(BUZZER, 0);
+              buzzer_enable = 0;
               Serial.println("buzzer muted") ;
             }
             break;
@@ -298,13 +299,14 @@ void loop() {
     Serial.println("Fluid Low Level") ; 
     liquid_low_level = 1;
     if(!buzzer_mute)
-      digitalWrite(BUZZER, 1);
+      buzzer_enable = 1;
   }
   if(level_capacity_nF > level_capacity_nF_to_normal && liquid_low_level)
   {
     liquid_low_level = 0;
-    digitalWrite(BUZZER, 0);
+    buzzer_enable = 0;
   }
+  buzzer_modulate(buzzer_enable);
 }
 void valve_turn(int16_t steps) 
 {
@@ -433,5 +435,22 @@ void self_tune(float measured_value, float setpoint) {
     if (Kp < 0) Kp = 0;
     if (Ki < 0) Ki = 0;
 }
+void buzzer_modulate(int8_t enable) {
+  static unsigned long myTime = 0;
+  static uint8_t state = 0;
 
+  if(enable) 
+  {
+    if(millis() - myTime > 500)
+    {
+      state ^= 1;
+      digitalWrite(BUZZER, state);
+      myTime = millis();
+    }
+  }
+  else
+  {
+    digitalWrite(BUZZER, 0);
+  } 
+}
 
