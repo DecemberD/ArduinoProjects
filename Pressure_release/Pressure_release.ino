@@ -441,7 +441,7 @@ void buzzer_modulate(int8_t enable) {
 
   if(enable) 
   {
-    if(millis() - myTime > 500)
+    if(millis() - myTime > 250)
     {
       state ^= 1;
       digitalWrite(BUZZER, state);
