@@ -241,13 +241,13 @@ void loop() {
   int i = 100;
   pressure_adc_count = analogRead(PRESSURE);
   //pressure_psi = map_float(pressure_adc_count, 478.952, 957.905, 0.0, 12.5); // reference 1.069V, 100psi range
-  pressure_psi_avg = map_float((float)pressure_adc_count, 102.3, 920.7, 0, 30); // reference 5V, 30psi range
+  pressure_psi_avg = map_float((float)pressure_adc_count, 102.3, 920.7, 0, 100); // reference 5V, 30psi range
   while (i > 0)                                         
   {
     i -= 1;
     pressure_adc_count = analogRead(PRESSURE);
     //pressure_psi = map_float(pressure_adc_count, 478.952, 957.905, 0.0, 12.5); // reference 1.069V, 100psi range
-    pressure_psi = map_float((float)pressure_adc_count, 102.3, 920.7, 0, 30); // reference 5V, 30psi range
+    pressure_psi = map_float((float)pressure_adc_count, 102.3, 920.7, 0, 100); // reference 5V, 30psi range
     pressure_psi_avg =  (float)(pressure_psi_avg*99 +  pressure_psi)/100;
   }
 
