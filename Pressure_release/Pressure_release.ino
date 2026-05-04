@@ -21,6 +21,8 @@ Author: Marcin Dec
 #define LEVEL A1
 // constant definitions
 #define MOTOR_STEPS_TO_OPEN_CLOSE 255
+#define DIR_CLOSE 1
+#define DIR_OPEN 0
 
 uint8_t valve_open = 0;
 uint8_t liquid_low_level = 0;
@@ -52,7 +54,7 @@ void setup() {
   digitalWrite(STEP_STICK_MS3, 0);                //
   digitalWrite(STEP_STICK_N_RESET, 0);            // keep stepstick in reset
   digitalWrite(STEP_STICK_STEP, 0);               // STEP_STICK_STEP Low
-  digitalWrite(STEP_STICK_DIR, 0);                // dir to Close
+  digitalWrite(STEP_STICK_DIR, DIR_CLOSE);        // dir to Close
   digitalWrite(BUZZER, 0);                        // Buzzer Off
 
   pinMode(STEP_STICK_N_ENABLE, OUTPUT);                 // outputs enable
@@ -282,7 +284,7 @@ void loop() {
   pressure_psi_diff = pressure_psi_last - pressure_psi_avg;
   pressure_psi_diff = abs(pressure_psi_diff);
   
-  if(level_capacity_nF_change < 0.8 || pressure_psi_diff > 0.1) // print level_capacity_nF and pressure value only when changed 
+  if(level_capacity_nF_change < 0.8 || pressure_psi_diff > 0.2) // print level_capacity_nF and pressure value only when changed 
   {
     Serial.print("level_capacity_nF: ") ;
     Serial.println(level_capacity_nF, 1) ; 
@@ -338,14 +340,14 @@ void valve_turn(int16_t steps)
     digitalWrite(STEP_STICK_N_ENABLE, 0);
     if(steps > 0) 
     {
-      digitalWrite(STEP_STICK_DIR, 1);
+      digitalWrite(STEP_STICK_DIR, DIR_OPEN);
       Serial.print("valve_position: ") ;
       Serial.println(valve_position) ;
       valve_open = 1;
     }
     else if(steps < 0) 
     {
-      digitalWrite(STEP_STICK_DIR, 0);
+      digitalWrite(STEP_STICK_DIR, DIR_CLOSE);
       Serial.print("valve_position: ") ;
       Serial.println(valve_position) ;
       valve_open = 0;
