@@ -251,7 +251,7 @@ void loop() {
   // valve control
   pid_output = (int16_t)calculate_pid(pressure_psi_setpoint, pressure_psi_avg);
   if ((pid_output - valve_position) != 0 && !ctrl_override) {
-    if ((pid_output - valve_position)/16 > 0)
+    if ((pid_output - valve_position)/16 != 0)
     {
       valve_turn(((pid_output - valve_position) / 16)*16);
     }
