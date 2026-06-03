@@ -8,11 +8,11 @@ Author: Marcin Dec
 #include <EEPROM.h>
 
 // pins definition
-#define STEP_STICK_N_ENABLE 2
+#define STEP_STICK_N_ENABLE 2  
 #define STEP_STICK_MS1 3  
 #define STEP_STICK_MS2 4  
 #define STEP_STICK_MS3 5 
-#define STEP_STICK_N_RESET 7
+#define STEP_STICK_N_RESET 7  // hw pull-down to keep in reset during arduino power-up sequence
 #define STEP_STICK_STEP 8  
 #define STEP_STICK_DIR 9  
 #define BUZZER 12
@@ -47,9 +47,9 @@ void setup() {
   int16_t int_value;
 
   digitalWrite(STEP_STICK_N_ENABLE, 1);           // disable stepstick output
-  digitalWrite(STEP_STICK_MS1, 0);                // 1/16 microSTEP
-  digitalWrite(STEP_STICK_MS2, 0);                //
-  digitalWrite(STEP_STICK_MS3, 0);                //
+  digitalWrite(STEP_STICK_MS1, 1);                // 1/16 microSTEP
+  digitalWrite(STEP_STICK_MS2, 1);                //
+  digitalWrite(STEP_STICK_MS3, 1);                //
   digitalWrite(STEP_STICK_N_RESET, 0);            // keep stepstick in reset
   digitalWrite(STEP_STICK_STEP, 0);               // STEP_STICK_STEP Low
   digitalWrite(STEP_STICK_DIR, 0);                // dir to Close
@@ -134,29 +134,29 @@ void loop() {
             Serial.println(pressure_psi_setpoint, 1) ; 
             break;
           case 'e':
-            level_capacity_nF_to_normal += 10.0;
+            level_capacity_nF_to_normal += 2.0;
             if(level_capacity_nF_to_normal >= 2000.0)
               level_capacity_nF_to_normal = 2000.0;
             Serial.print("level_capacity_nF_to_normal: ") ;
             Serial.println(level_capacity_nF_to_normal, 1) ;    // print float with 1 decimal place
             break;
           case 'd':
-            level_capacity_nF_to_normal -= 10.0;
-            if(level_capacity_nF_to_normal <= -10.0)
+            level_capacity_nF_to_normal -= 2.0;
+            if(level_capacity_nF_to_normal <= -2.0)
               level_capacity_nF_to_normal = 0.0;
             Serial.print("level_capacity_nF_to_normal: ") ;
             Serial.println(level_capacity_nF_to_normal, 1) ; 
             break;
           case 'r':
-            level_capacity_nF_to_low += 10.0;
+            level_capacity_nF_to_low += 2.0;
             if(level_capacity_nF_to_low >= 2000.0)
               level_capacity_nF_to_low = 2000.0;
             Serial.print("level_capacity_nF_to_low: ") ;
             Serial.println(level_capacity_nF_to_low, 1) ; 
             break;
           case 'f':
-            level_capacity_nF_to_low -= 10.0;
-            if(level_capacity_nF_to_low <= -10.0)
+            level_capacity_nF_to_low -= 2.0;
+            if(level_capacity_nF_to_low <= -2.0)
               level_capacity_nF_to_low = 0.0;
             Serial.print("level_capacity_nF_to_low: ") ;
             Serial.println(level_capacity_nF_to_low, 1) ; 
@@ -314,14 +314,14 @@ void valve_turn(int16_t steps)
   static uint8_t step_delay_ms = 2;
   if(steps == 0)
   {
-    digitalWrite(STEP_STICK_N_RESET, 0);            // Reset stepstick
-    digitalWrite(STEP_STICK_MS1, 0);                // FullSTEP
-    digitalWrite(STEP_STICK_MS2, 0);                //
-    digitalWrite(STEP_STICK_MS3, 0);                //
-    digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
-    delay(1);                                       //
-    step_delay_ms = 32;                             // set step/ustep delay
-    valve_turn(-32);                                // turn to end position
+    // digitalWrite(STEP_STICK_N_RESET, 0);            // Reset stepstick
+    // digitalWrite(STEP_STICK_MS1, 0);                // FullSTEP
+    // digitalWrite(STEP_STICK_MS2, 0);                //
+    // digitalWrite(STEP_STICK_MS3, 0);                //
+    // digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
+    // delay(1);                                       //
+    // step_delay_ms = 32;                             // set step/ustep delay
+    // valve_turn(-32);                                // turn to end position
     digitalWrite(STEP_STICK_N_RESET, 0);            // Reset stepstick                                      //
     digitalWrite(STEP_STICK_MS1, 1);                // 1/16 microSTEP
     digitalWrite(STEP_STICK_MS2, 1);                //
@@ -329,6 +329,8 @@ void valve_turn(int16_t steps)
     digitalWrite(STEP_STICK_N_RESET, 1);            // Release Reset stepstick
     delay(1);                                       //
     step_delay_ms = 2;                              // set step/ustep delay
+    valve_turn(-512);
+
     valve_turn(initial_valve_position);                                // turn to position 0
     valve_position = 0;
   }
@@ -393,16 +395,16 @@ float calculate_pid(float setpoint, float measured_value)
   // PID output
   float output = Kp * error + Ki * integral + Kd * derivative;
 
-  // Clamp output to 0-200
+  // Clamp output to 0-150
   if (output <= 0.0)
   {
     output_clamped = 1;
     output = 0.0;
   }
-  else if (output >= 200.0) 
+  else if (output >= 150.0) 
   {
     output_clamped = 1;
-    output = 200.0;
+    output = 150.0;
   }
   else output_clamped = 0;
   
